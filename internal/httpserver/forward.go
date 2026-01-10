@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/alextanhongpin/base62"
+	"github.com/gocql/gocql"
 	"github.com/redis/go-redis/v9"
 
 	"shortenit/internal/utils"
@@ -22,7 +23,7 @@ type ForwardResponse struct {
 	ShortURL string `json:"short_url"`
 }
 
-func ForwardHandler(rdb *redis.Client, session *gocqlx.Session) http.HandlerFunc {
+func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.Background()
 

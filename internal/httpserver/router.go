@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/scylladb/gocqlx/v2"
+	"github.com/gocql/gocql"
 )
 
-func NewRouter(rdb *redis.Client, session *gocqlx.Session) http.Handler {
+func NewRouter(rdb *redis.Client, session *gocql.Session) http.Handler {
 	ctx := context.Background()
 	mux := http.NewServeMux()
 
