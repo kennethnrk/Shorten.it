@@ -3,8 +3,8 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/redis/go-redis/v9"
 
+	"shortenit/internal/models"
 	"shortenit/internal/utils"
 )
 
@@ -27,6 +28,7 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.Background()
 
+		// parsing the request body
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -40,6 +42,9 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 			_, _ = w.Write([]byte(`{"status":"error","error":"failed to unmarshal body"}`))
 			return
 		}
+
+		// validating the long url
+		// TODO: explore validation libraries
 		if request.LongURL == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(`{"status":"error","error":"long_url is required"}`))
@@ -52,15 +57,13 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 			return
 		}
 
-		exists, err := rdb.Get(ctx, "forward:"+request.LongURL).Result()
+		// checking if the long url exists in the redis
+		redisExists, err := rdb.Get(ctx, "forward:"+request.LongURL).Result()
 		if err != nil && err != redis.Nil {
-			fmt.Println("failed to check if long URL exists", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"status":"error","error":"failed to check if long URL exists"}`))
-			return
-		}
-		if exists != "" {
-			shortURL := strings.TrimPrefix(exists, "forward:")
+			log.Println("failed to check if long URL exists in redis", err)
+		} else if redisExists != "" {
+			// redis hit, return the short url
+			shortURL := strings.TrimPrefix(redisExists, "forward:")
 			response := ForwardResponse{
 				ShortURL: shortURL,
 			}
@@ -76,6 +79,29 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 			return
 		}
 
+		// checking if the long url exists in the cql db
+		dbShortURL, err := models.FetchShortURL(session, request.LongURL)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"status":"error","error":"failed to fetch short URL"}`))
+			return
+		} else if dbShortURL != "" {
+			response := ForwardResponse{
+				ShortURL: dbShortURL,
+			}
+			jsonResponse, err := json.Marshal(response)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"status":"error","error":"failed to marshal response"}`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(jsonResponse)
+			return
+		}
+
+		// If both redis and cql db miss, we need to generate a new short URL
 		currentCount, err := rdb.Incr(ctx, "currentCount").Result()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -86,18 +112,15 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 		b62 := base62.New(base62.DEFAULT_CHARS)
 		shortURL := b62.Encode(uint64(currentCount))
 
-		err = rdb.Set(ctx, "forward:"+request.LongURL, shortURL, 0).Err()
+		err = models.InsertNewURL(session, request.LongURL, shortURL)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"status":"error","error":"failed to set short URL"}`))
+			_, _ = w.Write([]byte(`{"status":"error","error":"failed to insert new URL"}`))
 			return
 		}
-
-		err = rdb.Set(ctx, "backward:"+shortURL, request.LongURL, 0).Err()
+		err = models.SetNewURLRedis(rdb, request.LongURL, shortURL)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"status":"error","error":"failed to set long URL"}`))
-			return
+			log.Println("failed to set new URL in redis", err)
 		}
 
 		response := ForwardResponse{
