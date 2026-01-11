@@ -73,6 +73,8 @@ func main() {
 	}
 
 	cluster.Timeout = 30 * time.Second
+	//setting the session to use the keyspace
+	cluster.Keyspace = astraDBKeyspace
 	session, err := gocql.NewSession(*cluster)
 
 	if err != nil {

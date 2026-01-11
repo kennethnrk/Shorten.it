@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"shortenit/internal/models"
+	"shortenit/internal/utils"
 )
 
 type BackwardRequest struct {
@@ -38,6 +39,19 @@ func BackwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc
 		if err := json.Unmarshal(body, &request); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"status":"error","error":"failed to unmarshal body"}`))
+			return
+		}
+
+		// validating the short URL
+		if request.ShortURL == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"status":"error","error":"short_url is required"}`))
+			return
+		}
+
+		if !utils.ValidateShortURL(request.ShortURL) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"status":"error","error":"invalid short_url"}`))
 			return
 		}
 

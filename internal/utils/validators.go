@@ -12,6 +12,15 @@ func ValidateLongURL(longURL string) bool {
 	if !re.MatchString(longURL) {
 		return false
 	}
-	
+
+	return true
+}
+
+func ValidateShortURL(shortURL string) bool {
+	// short URL must be only base62 characters
+	re := regexp.MustCompile(`^[0-9a-zA-Z]+$`)
+	if !re.MatchString(shortURL) {
+		return false
+	}
 	return true
 }

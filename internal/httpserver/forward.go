@@ -82,6 +82,7 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 		// checking if the long url exists in the cql db
 		dbShortURL, err := models.FetchShortURL(session, request.LongURL)
 		if err != nil {
+			log.Println("failed to fetch short URL from cql db", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"status":"error","error":"failed to fetch short URL"}`))
 			return
