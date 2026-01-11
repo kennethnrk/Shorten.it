@@ -100,4 +100,6 @@ func main() {
 	log.Println("shorten.it API listening on :8080 (Redis connected)")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
+	defer rdb.Close()
+	defer session.Close()
 }

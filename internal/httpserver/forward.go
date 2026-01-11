@@ -119,10 +119,8 @@ func ForwardHandler(rdb *redis.Client, session *gocql.Session) http.HandlerFunc 
 			_, _ = w.Write([]byte(`{"status":"error","error":"failed to insert new URL"}`))
 			return
 		}
-		err = models.SetNewURLRedis(rdb, request.LongURL, shortURL)
-		if err != nil {
-			log.Println("failed to set new URL in redis", err)
-		}
+		// use go routine to set the new URL in the redis
+		go models.SetNewURLRedis(rdb, request.LongURL, shortURL)
 
 		response := ForwardResponse{
 			ShortURL: shortURL,
