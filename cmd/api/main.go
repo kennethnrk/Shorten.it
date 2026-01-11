@@ -20,9 +20,11 @@ func main() {
 
 	ctx := context.Background()
 
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+	// Load environment variables from .env for local development.
+	// When running in Docker or production, configuration should come
+	// from real environment variables, so it's fine if .env is missing.
+	if err := godotenv.Load(".env"); err != nil {
+		log.Println("No .env file found, relying on existing environment variables")
 	}
 
 	// Initialize Redis client

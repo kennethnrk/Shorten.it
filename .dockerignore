@@ -1,0 +1,26 @@
+# VCS
+.git
+
+# IDE / editor
+.idea
+.vscode
+.DS_Store
+
+# Binaries
+cmd/api/api.exe
+bin/
+*.exe
+*.out
+
+# Logs
+*.log
+
+# Node / frontend (if any)
+node_modules/
+dist/
+build/
+
+# Optional: do not send .env into build context; pass env at runtime instead
+.env
+
+
