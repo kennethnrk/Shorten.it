@@ -32,5 +32,7 @@ func NewRouter(rdb *redis.Client, session *gocql.Session) http.Handler {
 
 	mux.Handle("POST /forward", ForwardHandler(rdb, session))
 
+	mux.Handle("POST /backward", BackwardHandler(rdb, session))
+
 	return mux
 }
