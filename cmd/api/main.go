@@ -32,9 +32,6 @@ func main() {
 	redisUsername := os.Getenv("REDIS_USERNAME")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 	redisDB, err := strconv.Atoi(os.Getenv("REDIS_DB_NO"))
-	if err != nil {
-		log.Fatalf("Error converting REDIS_DB to int: %v", err)
-	}
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,

@@ -51,4 +51,45 @@ docker run --env-file .env -p 8080:8080 --name shortenit-api shortenit-api
 
 The API will then be available at `http://localhost:8080`.
 
+### Load testing with Locust
 
+A Python/Locust-based load and stress test lives under the `testing` directory.
+
+- **1. Create and activate the virtual environment**
+- From the `testing` directory:
+
+```bash
+cd testing
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+- **2. Install dependencies**
+- With the virtual environment activated:
+
+```bash
+pip install -r requirements.txt
+```
+
+- **3. Run Locust against a local API**
+- Ensure the Go API is running (e.g. `go run ./cmd/api` from the project root).
+- Then, from the project root or `testing` directory:
+
+```bash
+locust -f testing/locustfile.py --host http://localhost:8080
+```
+
+Open the Locust web UI (by default at `http://localhost:8089`) to configure users, spawn rate, and start the test.
+
+- **4. Run Locust in headless mode**
+- Example headless run with 100 users for 5 minutes:
+
+```bash
+API_BASE_URL=http://localhost:8080 locust -f testing/locustfile.py --headless --users 100 --spawn-rate 10 --run-time 5m
+```
+
+The `API_BASE_URL` environment variable controls the default host for Locust, so you can easily target a different environment:
+
+```bash
+API_BASE_URL=https://your-remote-api.example.com locust -f testing/locustfile.py --headless --users 50 --spawn-rate 5 --run-time 10m
+```
