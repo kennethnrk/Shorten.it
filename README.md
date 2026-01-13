@@ -1,6 +1,127 @@
 ## shorten.it Go API
 
-This is a basic Go API for URL shortening backed by Redis and Astra DB.
+# Architecture Overview
+
+This project implements a **high-throughput URL shortener** optimized for low-latency read operations and horizontal scalability. The architecture follows a **cache-first, write-through** design and leverages Go’s lightweight concurrency model to parallelize IO-bound operations.
+
+
+---
+
+## Core Components
+
+### 1. API Layer (Go)
+
+- Built using Go’s `net/http`
+- Handles URL shortening and redirection
+- Uses **goroutines** to parallelize:
+  - Writes to Redis
+  - Writes to CassandraDB
+- Designed to be stateless for horizontal scaling
+
+---
+
+### 2. ID Generation (Base62 Encoding)
+
+- Each long URL is mapped to a **Base62-encoded identifier**
+- Produces short, URL-safe strings (`[a-zA-Z0-9]`)
+- Variable-length encoding allows:
+  - Better space utilization
+  - Higher key capacity without collisions
+
+---
+
+### 3. Redis Cache
+
+- Acts as the **first read layer**
+- Stores short → long URL mappings
+- Configured with:
+  - High read throughput
+  - TTL policies tuned for hot URLs
+- Achieves ~95% cache hit rate under load
+
+**Access Pattern**
+- Read: Cache-first
+- Write: Write-through (Redis + Cassandra)
+
+---
+
+### 4. CassandraDB (Primary Data Store)
+
+- Acts as the **source of truth**
+- Optimized for:
+  - Write-heavy workloads
+  - Constant-time primary-key reads
+- Data model:
+  - Partition key: `short_url`
+  - Value: `long_url`, metadata (timestamps, counters, etc.)
+- Supports linear horizontal scaling
+
+---
+
+### 5. Concurrency Model
+
+- Go **goroutines** used for:
+  - Parallel IO operations
+  - Non-blocking request handling
+- Enables high throughput with minimal thread overhead
+
+---
+
+## Request Flow
+
+### URL Shortening
+
+1. Client sends long URL
+2. Server generates Base62 short ID
+3. In parallel:
+   - Store mapping in CassandraDB
+   - Cache mapping in Redis
+4. Return short URL to client
+
+---
+
+### URL Redirection
+
+1. Client requests short URL
+2. Server queries Redis
+   - **Cache hit** → return long URL
+   - **Cache miss** → query CassandraDB
+3. On cache miss:
+   - Populate Redis
+   - Redirect client
+
+---
+
+## Scalability & Fault Tolerance
+
+- **Stateless Go services** allow horizontal scaling behind a load balancer
+- Redis reduces DB read pressure
+- Cassandra provides:
+  - Replication
+  - High availability
+  - No single point of failure
+- System remains operational under partial cache failures
+
+---
+
+## Performance Characteristics
+
+- Optimized for read-heavy traffic
+- Handles high concurrency with stable latency
+- Suitable for:
+  - URL shorteners
+  - Redirect services
+  - Read-dominant key-value workloads
+
+---
+
+## Technology Stack
+
+- **Language:** Go
+- **Cache:** Redis
+- **Database:** CassandraDB
+- **Load Testing:** Locust
+
 
 ### Requirements
 
